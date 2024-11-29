@@ -1,0 +1,6 @@
+@DuootApi_HostAddress = http://localhost:5183
+
+GET {{DuootApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
