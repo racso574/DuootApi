@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using DuootApi.Models;
+using System.Text;
 
 namespace DuootApi.Data
 {
@@ -18,27 +19,61 @@ namespace DuootApi.Data
         public DbSet<UserTrait> UserTraits { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    base.OnModelCreating(modelBuilder);
+
+    // Aplicar convención global para convertir nombres a minúsculas sin guiones
+    foreach (var entity in modelBuilder.Model.GetEntityTypes())
+    {
+        // Configurar el nombre de las tablas en minúsculas
+        entity.SetTableName(ToLowerCase(entity.GetTableName()));
+
+        // Configurar las columnas en minúsculas
+        foreach (var property in entity.GetProperties())
         {
-            base.OnModelCreating(modelBuilder);
-
-            // Explicit mapping of tables to lowercase names
-            modelBuilder.Entity<User>().ToTable("users");
-            modelBuilder.Entity<Post>().ToTable("posts");
-            modelBuilder.Entity<Choice>().ToTable("choices");
-            modelBuilder.Entity<Vote>().ToTable("votes");
-            modelBuilder.Entity<Comment>().ToTable("comments");
-            modelBuilder.Entity<Category>().ToTable("categories");
-            modelBuilder.Entity<PostCategory>().ToTable("postcategories");
-            modelBuilder.Entity<PersonalityTrait>().ToTable("personality_traits");
-            modelBuilder.Entity<UserTrait>().ToTable("user_traits");
-
-            // Configuring composite primary key for PostCategory
-            modelBuilder.Entity<PostCategory>()
-                .HasKey(pc => new { pc.PostID, pc.CategoryID });
-
-            // Configuring composite primary key for UserTrait
-            modelBuilder.Entity<UserTrait>()
-                .HasKey(ut => new { ut.UserID, ut.TraitID });
+            property.SetColumnName(ToLowerCase(property.Name));
         }
+
+        // Configurar las claves primarias y foráneas en minúsculas
+        foreach (var key in entity.GetKeys())
+        {
+            key.SetName(ToLowerCase(key.GetName()));
+        }
+
+        foreach (var foreignKey in entity.GetForeignKeys())
+        {
+            foreignKey.SetConstraintName(ToLowerCase(foreignKey.GetConstraintName()));
+        }
+
+        foreach (var index in entity.GetIndexes())
+        {
+            index.SetDatabaseName(ToLowerCase(index.GetDatabaseName()));
+        }
+    }
+
+    // Configurar relaciones específicas o claves compuestas
+    modelBuilder.Entity<PostCategory>()
+        .HasKey(pc => new { pc.PostID, pc.CategoryID });
+
+    modelBuilder.Entity<UserTrait>()
+        .HasKey(ut => new { ut.UserID, ut.TraitID });
+
+    modelBuilder.Entity<UserTrait>()
+        .HasOne(ut => ut.User)
+        .WithMany(u => u.UserTraits)
+        .HasForeignKey(ut => ut.UserID);
+
+    modelBuilder.Entity<UserTrait>()
+        .HasOne(ut => ut.PersonalityTrait)
+        .WithMany(pt => pt.UserTraits)
+        .HasForeignKey(ut => ut.TraitID);
+}
+
+// Método auxiliar para convertir nombres a minúsculas
+private static string ToLowerCase(string input)
+{
+    return input?.ToLower();
+}
+
     }
 }

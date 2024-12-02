@@ -141,3 +141,4 @@ C:\Users\oscar\Documents\BootCamp\DuootApi\DuootApi\bin\Debug\net8.0\Microsoft.I
 C:\Users\oscar\Documents\BootCamp\DuootApi\DuootApi\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
 C:\Users\oscar\Documents\BootCamp\DuootApi\DuootApi\bin\Debug\net8.0\Microsoft.IdentityModel.Tokens.dll
 C:\Users\oscar\Documents\BootCamp\DuootApi\DuootApi\bin\Debug\net8.0\System.IdentityModel.Tokens.Jwt.dll
+c:\Users\oscar\Documents\BootCamp\DuootApi\DuootApi\obj\Debug\net8.0\DuootApi.sourcelink.json

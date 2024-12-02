@@ -28,5 +28,6 @@ namespace DuootApi.Models
         public List<Post> Posts { get; set; } = new List<Post>();
         public List<Vote> Votes { get; set; } = new List<Vote>();
         public List<Comment> Comments { get; set; } = new List<Comment>();
+        public List<UserTrait> UserTraits { get; set; } = new List<UserTrait>();
     }
 }
