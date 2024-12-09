@@ -100,27 +100,91 @@ namespace DuootApi.Controllers
             return user;
         }
 
-        // PUT: api/Users/5 - Edit user profile
+        // PUT: api/Users/5/username - Edit user username
         [Authorize] // Requires authentication
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutUser(int id, User user)
+        [HttpPut("{id}/username")]
+        public async Task<IActionResult> UpdateUsername(int id, [FromBody] string newUsername)
         {
-            if (id != user.UserID)
-            {
-                return BadRequest();
-            }
-
             var existingUser = await _context.Users.FindAsync(id);
             if (existingUser == null)
             {
                 return NotFound();
             }
 
-            // Update allowed fields
-            existingUser.Username = user.Username;
-            existingUser.Email = user.Email;
-            existingUser.ProfileImage = user.ProfileImage;
+            existingUser.Username = newUsername;
+            _context.Entry(existingUser).State = EntityState.Modified;
 
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!UserExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
+        }
+
+        // PUT: api/Users/5/password - Edit user password
+        [Authorize] // Requires authentication
+        [HttpPut("{id}/password")]
+        public async Task<IActionResult> UpdatePassword(int id, [FromBody] UpdatePasswordRequest updatePasswordRequest)
+        {
+            var existingUser = await _context.Users.FindAsync(id);
+            if (existingUser == null)
+            {
+                return NotFound();
+            }
+
+            // Verify the current password is correct
+            if (!VerifyPassword(updatePasswordRequest.CurrentPassword, existingUser.PasswordHash))
+            {
+                return Unauthorized("Current password is incorrect");
+            }
+
+            // Update to the new password
+            existingUser.PasswordHash = HashPassword(updatePasswordRequest.NewPassword);
+            _context.Entry(existingUser).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!UserExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
+        }
+
+        // PUT: api/Users/5/profileImage - Edit user profile image
+        [Authorize] // Requires authentication
+        [HttpPut("{id}/profileImage")]
+        public async Task<IActionResult> UpdateProfileImage(int id, [FromBody] string newProfileImage)
+        {
+            var existingUser = await _context.Users.FindAsync(id);
+            if (existingUser == null)
+            {
+                return NotFound();
+            }
+
+            existingUser.ProfileImage = newProfileImage;
             _context.Entry(existingUser).State = EntityState.Modified;
 
             try
@@ -187,5 +251,11 @@ namespace DuootApi.Controllers
     {
         public string Email { get; set; }
         public string Password { get; set; }
+    }
+
+    public class UpdatePasswordRequest
+    {
+        public string CurrentPassword { get; set; }
+        public string NewPassword { get; set; }
     }
 }

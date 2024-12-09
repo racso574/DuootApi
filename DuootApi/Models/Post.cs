@@ -7,6 +7,7 @@ namespace DuootApi.Models
         public int UserID { get; set; }
         public string Title { get; set; }
         public DateTime CreationDate { get; set; }
+        public string Description { get; set; }
 
         // Navigation
         public User User { get; set; }

@@ -6,13 +6,6 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure the connection to PostgreSQL
-
-var connectionString = builder.Configuration.GetConnectionString("DuootDatabase");
-if (string.IsNullOrEmpty(connectionString))
-{
-    throw new InvalidOperationException("The connection string 'DuootDatabase' is not configured.");
-}
-
 builder.Services.AddDbContext<DuootDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DuootDatabase")));
 
