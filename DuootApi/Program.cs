@@ -9,7 +9,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<DuootDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DuootDatabase")));
 
-
 // Add services to the container
 builder.Services.AddControllers();
 
@@ -47,4 +46,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Configure Kestrel to listen on all network interfaces
+var port = builder.Configuration.GetValue("PORT", 5000); // Default to port 5000 if no value provided
+app.Urls.Add($"http://0.0.0.0:{port}");
+
 app.Run();
