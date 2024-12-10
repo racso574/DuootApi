@@ -2,6 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using DuootApi.Data;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.FileProviders;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +13,24 @@ builder.Services.AddDbContext<DuootDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DuootDatabase")));
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Ignorar referencias cíclicas
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.WriteIndented = true;
+    });
+
+// Add CORS policy to allow any origin
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin() // Permite solicitudes desde cualquier origen
+              .AllowAnyHeader() // Permite cualquier encabezado
+              .AllowAnyMethod(); // Permite cualquier método (GET, POST, PUT, DELETE, etc.)
+    });
+});
 
 // Configure JWT authentication
 builder.Services.AddAuthentication("Bearer")
@@ -40,6 +60,18 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Apply the "AllowAll" CORS policy
+app.UseCors("AllowAll");
+
+// Habilitar servir archivos estáticos (para las imágenes)
+// Colocarlo antes de UseAuthentication y UseAuthorization para evitar restricciones en las imágenes
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Images")),
+    RequestPath = "/Images"
+});
+
 
 // Middleware for authentication and authorization
 app.UseAuthentication();
