@@ -27,59 +27,67 @@ namespace DuootApi.Controllers
             Console.WriteLine($"Images directory path: {_imagesDirectoryPath}");
         }
 
-        // GET: api/Posts - Obtener todos los posts con sus choices (incluyendo rutas de imagen)
+        // GET: api/Posts - Obtener todos los posts con sus choices y categorías
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Post>>> GetPosts()
         {
-            Console.WriteLine("Fetching posts with choices...");
+            Console.WriteLine("Fetching posts with choices and categories...");
             var posts = await _context.Posts
                 .Include(p => p.Choices)
+                .Include(p => p.PostCategories)
+                    .ThenInclude(pc => pc.Category)
                 .ToListAsync();
-
-            foreach (var post in posts)
-            {
-                Console.WriteLine($"Post ID: {post.PostID}, Title: {post.Title}");
-                foreach (var choice in post.Choices)
-                {
-                    Console.WriteLine($"Choice ID: {choice.ChoiceID}, Text: {choice.TextContent}, Image URL: {choice.ImageURL}");
-                }
-            }
 
             return Ok(posts);
         }
 
-        // POST: api/Posts - Crear un nuevo post con sus choices y sus imágenes
-        // Se fuerza temporalmente el UserID a 1
+        [HttpGet("bycategory")]
+        public async Task<ActionResult<IEnumerable<Post>>> GetPostsByCategory([FromQuery] int categoryId)
+        {
+            var posts = await _context.Posts
+                .Include(p => p.Choices)
+                .Include(p => p.PostCategories)
+                    .ThenInclude(pc => pc.Category)
+                .Where(p => p.PostCategories.Any(pc => pc.CategoryID == categoryId))
+                .ToListAsync();
+
+            return Ok(posts);
+        }
+
+
+        // POST: api/Posts - Crear un nuevo post con sus choices, sus imágenes y categorías
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<ActionResult<Post>> CreatePost(
             [FromForm] string Title,
             [FromForm] string Description,
             [FromForm] List<string> ChoicesTextContent,
-            [FromForm] List<IFormFile> ChoicesImages
+            [FromForm] List<IFormFile> ChoicesImages,
+            [FromForm] List<int> CategoryIds
         )
         {
             Console.WriteLine("Starting CreatePost...");
             Console.WriteLine($"Title: {Title}, Description: {Description}");
             Console.WriteLine($"ChoicesTextContent count: {ChoicesTextContent?.Count}, ChoicesImages count: {ChoicesImages?.Count}");
+            Console.WriteLine($"CategoryIds count: {CategoryIds?.Count}");
 
-            // Crear un nuevo post con UserID = 1 (forzado temporalmente)
             var post = new Post
             {
-                UserID = 1, // Asignar temporalmente
+                UserID = 1, // temporal
                 Title = Title,
                 Description = Description,
                 CreationDate = DateTime.UtcNow,
-                Choices = new List<Choice>()
+                Choices = new List<Choice>(),
+                PostCategories = new List<PostCategory>()
             };
 
-            // Suponemos que la cantidad de textos en ChoicesTextContent coincide con la cantidad de imágenes en ChoicesImages
+            // Agregar choices
             for (int i = 0; i < ChoicesTextContent.Count; i++)
             {
                 var choiceText = ChoicesTextContent[i];
-                var imageFile = ChoicesImages.Count > i ? ChoicesImages[i] : null;
+                var imageFile = (ChoicesImages != null && ChoicesImages.Count > i) ? ChoicesImages[i] : null;
 
-                Console.WriteLine($"Processing choice {i + 1}: Text: {choiceText}, Image: {(imageFile != null ? imageFile.FileName : "No image provided")}");
+                Console.WriteLine($"Processing choice {i + 1}: Text: {choiceText}, Image: {(imageFile != null ? imageFile.FileName : "No image")}");
 
                 var choice = new Choice
                 {
@@ -87,7 +95,6 @@ namespace DuootApi.Controllers
                     ChoiceNumber = i + 1
                 };
 
-                // Guardar la imagen si existe
                 if (imageFile != null && imageFile.Length > 0)
                 {
                     try
@@ -101,7 +108,6 @@ namespace DuootApi.Controllers
                             await imageFile.CopyToAsync(stream);
                         }
 
-                        // Asignar la ruta relativa, por ejemplo: "/Images/imagen.jpg"
                         choice.ImageURL = "/Images/" + imageFileName;
                         Console.WriteLine($"Image saved. Relative path: {choice.ImageURL}");
                     }
@@ -118,11 +124,70 @@ namespace DuootApi.Controllers
                 post.Choices.Add(choice);
             }
 
+            // Asignar categorías
+            foreach (var catId in CategoryIds)
+            {
+                post.PostCategories.Add(new PostCategory
+                {
+                    CategoryID = catId
+                });
+            }
+
             _context.Posts.Add(post);
             await _context.SaveChangesAsync();
 
             Console.WriteLine($"Post created with ID: {post.PostID}");
             return CreatedAtAction(nameof(GetPosts), new { id = post.PostID }, post);
+        }
+
+        // DELETE: api/Posts - Eliminar todos los posts y sus imágenes
+        [HttpDelete("all")]
+        public async Task<IActionResult> DeleteAllPosts()
+        {
+            Console.WriteLine("Deleting all posts...");
+
+            // Obtener todos los posts con sus Choices para eliminar las imágenes
+            var allPosts = await _context.Posts
+                .Include(p => p.Choices)
+                .ToListAsync();
+
+            // Eliminar las imágenes asociadas a los Choices
+            foreach (var post in allPosts)
+            {
+                foreach (var choice in post.Choices)
+                {
+                    if (!string.IsNullOrWhiteSpace(choice.ImageURL))
+                    {
+                        // choice.ImageURL es algo como "/Images/<nombrearchivo>"
+                        // Necesitamos el nombre del archivo
+                        var imageName = Path.GetFileName(choice.ImageURL);
+                        var imagePath = Path.Combine(_imagesDirectoryPath, imageName);
+
+                        if (System.IO.File.Exists(imagePath))
+                        {
+                            try
+                            {
+                                System.IO.File.Delete(imagePath);
+                                Console.WriteLine($"Deleted image: {imagePath}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Error deleting image: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Eliminar todos los posts
+            // Esto debería eliminar en cascada Choices, Comments, Votes, PostCategories
+            // siempre y cuando la relación esté configurada con cascada en el modelo
+            _context.Posts.RemoveRange(allPosts);
+            await _context.SaveChangesAsync();
+
+            Console.WriteLine("All posts and related data have been deleted.");
+
+            return NoContent();
         }
     }
 }

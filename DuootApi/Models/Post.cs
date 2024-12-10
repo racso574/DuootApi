@@ -14,5 +14,7 @@ namespace DuootApi.Models
         public List<Choice> Choices { get; set; }
         public List<Vote> Votes { get; set; }
         public List<Comment> Comments { get; set; }
+
+        public List<PostCategory> PostCategories { get; set; } = new List<PostCategory>();
     }
 }
