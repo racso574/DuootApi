@@ -16,6 +16,18 @@ namespace DuootApi.Controllers
         {
             _context = context;
         }
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Comment>>> GetAllComments()
+        {
+            var comments = await _context.Comments
+                .Include(c => c.User)
+                .Include(c => c.Post)
+                .OrderByDescending(c => c.CreationDate)
+                .ToListAsync();
+
+            return Ok(comments);
+        }
+
 
         // GET: api/Comments/Post/5 - Obtener comentarios de un post específico
         [HttpGet("Post/{postId}")]
@@ -74,6 +86,25 @@ namespace DuootApi.Controllers
 
             return CreatedAtAction(nameof(GetCommentsByPost), new { postId = postId }, comment);
         }
+        
+        [HttpDelete]    
+        public async Task<IActionResult> DeleteAllComments()
+        {
+            var comments = await _context.Comments.ToListAsync();
+
+            if (!comments.Any())
+            {
+                return NotFound("No hay comentarios para eliminar.");
+            }
+
+            _context.Comments.RemoveRange(comments);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+    
+    
     }
 }
 

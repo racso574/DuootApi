@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DuootApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+05eb4826375dd679874d17bd0f52979453dc3364")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6024521ef3576495cd1ee670a5ff7b9a6df921cf")]
 [assembly: System.Reflection.AssemblyProductAttribute("DuootApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DuootApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
