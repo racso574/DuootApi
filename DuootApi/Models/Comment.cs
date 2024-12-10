@@ -1,3 +1,5 @@
+using System;
+using System.Text.Json.Serialization;
 
 namespace DuootApi.Models
 {
@@ -9,9 +11,11 @@ namespace DuootApi.Models
         public string Content { get; set; }
         public DateTime CreationDate { get; set; }
 
-        // Navigation
-      
+        // Propiedades de Navegación Opcionales
+        [JsonIgnore]
         public User? User { get; set; }
-        public Post Post { get; set; }
+
+        [JsonIgnore]
+        public Post? Post { get; set; }
     }
 }

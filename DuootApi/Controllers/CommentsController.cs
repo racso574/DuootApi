@@ -16,6 +16,7 @@ namespace DuootApi.Controllers
         {
             _context = context;
         }
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Comment>>> GetAllComments()
         {
@@ -27,7 +28,6 @@ namespace DuootApi.Controllers
 
             return Ok(comments);
         }
-
 
         // GET: api/Comments/Post/5 - Obtener comentarios de un post específico
         [HttpGet("Post/{postId}")]
@@ -68,7 +68,10 @@ namespace DuootApi.Controllers
                 return Unauthorized();
             }
 
-            int userId = int.Parse(userIdClaim.Value);
+            if (!int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("UserID inválido en el token.");
+            }
 
             // Asignar el UserID, PostID y la fecha de creación al comentario
             comment.UserID = userId;
@@ -86,8 +89,8 @@ namespace DuootApi.Controllers
 
             return CreatedAtAction(nameof(GetCommentsByPost), new { postId = postId }, comment);
         }
-        
-        [HttpDelete]    
+
+        [HttpDelete]
         public async Task<IActionResult> DeleteAllComments()
         {
             var comments = await _context.Comments.ToListAsync();
@@ -102,9 +105,5 @@ namespace DuootApi.Controllers
 
             return NoContent();
         }
-
-    
-    
     }
 }
-

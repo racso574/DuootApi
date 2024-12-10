@@ -27,7 +27,7 @@ namespace DuootApi.Controllers
             var post = await _context.Posts.FindAsync(postId);
             if (post == null)
             {
-                return NotFound("El post no existe.");
+                return NotFound(new { message = "El post no existe." });
             }
 
             var votesGrouped = await _context.Votes
@@ -53,37 +53,40 @@ namespace DuootApi.Controllers
             var post = await _context.Posts.Include(p => p.Choices).FirstOrDefaultAsync(p => p.PostID == postId);
             if (post == null)
             {
-                return NotFound("El post no existe.");
+                return NotFound(new { message = "El post no existe." });
             }
 
             var choice = post.Choices.FirstOrDefault(c => c.ChoiceID == choiceId);
             if (choice == null)
             {
-                return NotFound("La opción no existe en este post.");
+                return NotFound(new { message = "La opción no existe en este post." });
             }
 
             // Obtener el userID del token
             var userIdClaim = User.FindFirst("userID");
             if (userIdClaim == null)
             {
-                return Unauthorized();
+                return Unauthorized(new { message = "No autorizado." });
             }
 
-            int userId = int.Parse(userIdClaim.Value);
+            if (!int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized(new { message = "UserID inválido en el token." });
+            }
 
             // (Opcional) Verificar si el usuario ya votó en este post
             var existingVote = await _context.Votes.FirstOrDefaultAsync(v => v.PostID == postId && v.UserID == userId);
             if (existingVote != null)
             {
                 // Si no permites cambiar el voto:
-                // return Conflict("Ya has votado en este post.");
+                // return Conflict(new { message = "Ya has votado en este post." });
 
                 // Si permites cambiar el voto:
                 existingVote.ChoiceID = choiceId;
                 existingVote.VoteDate = DateTime.UtcNow;
                 _context.Entry(existingVote).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
-                return Ok("Voto actualizado correctamente.");
+                return Ok(new { message = "Voto actualizado correctamente." });
             }
 
             // Si es la primera vez que vota
@@ -98,7 +101,7 @@ namespace DuootApi.Controllers
             _context.Votes.Add(vote);
             await _context.SaveChangesAsync();
 
-            return Ok("Voto registrado correctamente.");
+            return Ok(new { message = "Voto registrado correctamente." });
         }
     }
 }
