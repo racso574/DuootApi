@@ -1,4 +1,4 @@
-
+using System.Text.Json.Serialization;
 namespace DuootApi.Models
 {
     public class Choice
@@ -9,8 +9,9 @@ namespace DuootApi.Models
         public string TextContent { get; set; }
         public string ImageURL { get; set; }
 
-        // Navigation
+        [JsonIgnore]
         public Post Post { get; set; }
+        [JsonIgnore]
         public List<Vote> Votes { get; set; }
     }
 }
