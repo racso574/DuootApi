@@ -1,5 +1,6 @@
-
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace DuootApi.Models
 {
@@ -24,10 +25,17 @@ namespace DuootApi.Models
         [StringLength(255)]
         public string? ProfileImage { get; set; }
 
-        // Navigation - Initialized to avoid NullReferenceException
+        // Propiedades de Navegación
+        [JsonIgnore] // Evita la serialización de Posts para optimizar la respuesta
         public List<Post> Posts { get; set; } = new List<Post>();
+
+        [JsonIgnore] // Evita la serialización de Votes para optimizar la respuesta
         public List<Vote> Votes { get; set; } = new List<Vote>();
+
+        [JsonIgnore] // Evita la serialización de Comments para optimizar la respuesta
         public List<Comment> Comments { get; set; } = new List<Comment>();
+
+        [JsonIgnore] // Evita la serialización de UserTraits para prevenir bucles
         public List<UserTrait> UserTraits { get; set; } = new List<UserTrait>();
     }
 }
