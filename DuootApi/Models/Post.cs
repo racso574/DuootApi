@@ -21,7 +21,7 @@ namespace DuootApi.Models
         public string Description { get; set; }
 
         // Propiedades de Navegación
-        [JsonIgnore] // Evita la serialización de User para prevenir bucles
+         // Evita la serialización de User para prevenir bucles
         public User User { get; set; }
 
          // Evita la serialización de Choices para optimizar la respuesta
