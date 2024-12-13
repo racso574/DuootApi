@@ -24,7 +24,7 @@ namespace DuootApi.Models
         [JsonIgnore] // Evita la serialización de User para prevenir bucles
         public User User { get; set; }
 
-        [JsonIgnore] // Evita la serialización de Choices para optimizar la respuesta
+         // Evita la serialización de Choices para optimizar la respuesta
         public List<Choice> Choices { get; set; } = new List<Choice>();
 
         [JsonIgnore] // Evita la serialización de PostCategories para prevenir bucles

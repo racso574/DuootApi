@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System;
 using Microsoft.AspNetCore.Http;
 using System.IO;
+using Microsoft.AspNetCore.Authorization;
 
 namespace DuootApi.Controllers
 {
@@ -54,8 +55,8 @@ namespace DuootApi.Controllers
             return Ok(posts);
         }
 
-
         // POST: api/Posts - Crear un nuevo post con sus choices, sus imágenes y categorías
+        [Authorize]
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<ActionResult<Post>> CreatePost(
@@ -66,6 +67,18 @@ namespace DuootApi.Controllers
             [FromForm] List<int> CategoryIds
         )
         {
+            // Obtener el UserID del token JWT
+            var userIdClaim = User.FindFirst("userID");
+            if (userIdClaim == null)
+            {
+                return Unauthorized("No se pudo determinar el usuario.");
+            }
+
+            if (!int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("UserID inválido en el token.");
+            }
+
             Console.WriteLine("Starting CreatePost...");
             Console.WriteLine($"Title: {Title}, Description: {Description}");
             Console.WriteLine($"ChoicesTextContent count: {ChoicesTextContent?.Count}, ChoicesImages count: {ChoicesImages?.Count}");
@@ -73,7 +86,7 @@ namespace DuootApi.Controllers
 
             var post = new Post
             {
-                UserID = 1, // temporal
+                UserID = userId, // Asignar el UserID obtenido del token
                 Title = Title,
                 Description = Description,
                 CreationDate = DateTime.UtcNow,
