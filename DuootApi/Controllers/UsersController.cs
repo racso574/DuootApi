@@ -245,6 +245,21 @@ namespace DuootApi.Controllers
             var hashedInputPassword = HashPassword(password);
             return hashedInputPassword == hashedPassword;
         }
+
+        // GET: api/Users/5/username - Get username by ID without authentication
+[HttpGet("{id}/Username")]
+public async Task<ActionResult<string>> GetUsernameById(int id)
+{
+    var user = await _context.Users.FindAsync(id);
+
+    if (user == null)
+    {
+        return NotFound("User not found");
+    }
+
+    return Ok(user.Username);
+}
+
     }
 
     public class LoginRequest
@@ -258,4 +273,6 @@ namespace DuootApi.Controllers
         public string CurrentPassword { get; set; }
         public string NewPassword { get; set; }
     }
+
+    
 }
