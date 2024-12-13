@@ -12,7 +12,7 @@ namespace DuootApi.Models
         [JsonIgnore] // Evita la serialización de Post para prevenir bucles
         public Post Post { get; set; }
 
-        [JsonIgnore] // Evita la serialización de Category para prevenir bucles
+         // Evita la serialización de Category para prevenir bucles
         public Category Category { get; set; }
     }
 }

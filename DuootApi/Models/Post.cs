@@ -27,7 +27,7 @@ namespace DuootApi.Models
          // Evita la serialización de Choices para optimizar la respuesta
         public List<Choice> Choices { get; set; } = new List<Choice>();
 
-        [JsonIgnore] // Evita la serialización de PostCategories para prevenir bucles
+        // Evita la serialización de PostCategories para prevenir bucles
         public List<PostCategory> PostCategories { get; set; } = new List<PostCategory>();
     }
 }

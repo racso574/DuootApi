@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API GET</title>
+</head>
+<body>
+    <h1>Test API GET</h1>
+    <button id="fetchPosts">Fetch Posts</button>
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('fetchPosts').addEventListener('click', async () => {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = 'Loading...';
+
+            try {
+                const response = await fetch('http://localhost:5000/api/Posts');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const posts = await response.json();
+
+                resultsDiv.innerHTML = '';
+
+                posts.forEach(post => {
+                    const postDiv = document.createElement('div');
+                    postDiv.style.border = '1px solid #ccc';
+                    postDiv.style.margin = '10px';
+                    postDiv.style.padding = '10px';
+
+                    postDiv.innerHTML = `
+                        <h2>${post.title}</h2>
+                        <p><strong>Description:</strong> ${post.description}</p>
+                        <p><strong>Creation Date:</strong> ${post.creationDate}</p>
+                        <h3>Choices:</h3>
+                        <ul>
+                            ${post.choices.map(choice => `
+                                <li>
+                                    ${choice.textContent}
+                                    ${choice.imageURL ? `<img src="http://localhost:5000${choice.imageURL}" alt="Choice Image" style="max-width:100px;">` : ''}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+
+                    resultsDiv.appendChild(postDiv);
+                });
+            } catch (error) {
+                resultsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
