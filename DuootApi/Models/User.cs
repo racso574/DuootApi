@@ -35,7 +35,7 @@ namespace DuootApi.Models
         [JsonIgnore] // Evita la serialización de Comments para optimizar la respuesta
         public List<Comment> Comments { get; set; } = new List<Comment>();
 
-        [JsonIgnore] // Evita la serialización de UserTraits para prevenir bucles
+        
         public List<UserTrait> UserTraits { get; set; } = new List<UserTrait>();
     }
 }

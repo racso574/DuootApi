@@ -12,7 +12,7 @@ namespace DuootApi.Models
         [JsonIgnore] // Evita la serialización de User para prevenir bucles
         public User User { get; set; }
 
-        [JsonIgnore] // Evita la serialización de PersonalityTrait para prevenir bucles
+         // Evita la serialización de PersonalityTrait para prevenir bucles
         public PersonalityTrait PersonalityTrait { get; set; }
     }
 }

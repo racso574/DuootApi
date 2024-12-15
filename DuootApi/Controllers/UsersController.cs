@@ -8,6 +8,8 @@ using Microsoft.IdentityModel.Tokens;    // To work with JWT token validation op
 using System.IdentityModel.Tokens.Jwt;   // To generate JWT token
 using System.Security.Claims;            // To work with JWT claims
 using Microsoft.AspNetCore.Authorization; // To use [Authorize] and protect endpoints
+using Microsoft.AspNetCore.Http;
+using System.IO;
 
 namespace DuootApi.Controllers
 {
@@ -16,12 +18,18 @@ namespace DuootApi.Controllers
     public class UsersController : ControllerBase
     {
         private readonly DuootDbContext _context;
-        private readonly IConfiguration _configuration;  // Add IConfiguration to get JWT settings
+        private readonly IConfiguration _configuration;
+        private readonly string _imagesDirectoryPath;
 
         public UsersController(DuootDbContext context, IConfiguration configuration)
         {
             _context = context;
-            _configuration = configuration;  // Inject configuration
+            _configuration = configuration;
+
+            // Definir el directorio donde se guardarán las imágenes
+            _imagesDirectoryPath = Path.Combine(Directory.GetCurrentDirectory(), "Images");
+            Directory.CreateDirectory(_imagesDirectoryPath); // Crea la carpeta si no existe
+            Console.WriteLine($"Images directory path: {_imagesDirectoryPath}");
         }
 
         // POST: api/Users - Register a new user
@@ -176,7 +184,8 @@ namespace DuootApi.Controllers
         // PUT: api/Users/5/profileImage - Edit user profile image
         [Authorize] // Requires authentication
         [HttpPut("{id}/profileImage")]
-        public async Task<IActionResult> UpdateProfileImage(int id, [FromBody] string newProfileImage)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateProfileImage(int id, [FromForm] IFormFile profileImage)
         {
             var existingUser = await _context.Users.FindAsync(id);
             if (existingUser == null)
@@ -184,7 +193,53 @@ namespace DuootApi.Controllers
                 return NotFound();
             }
 
-            existingUser.ProfileImage = newProfileImage;
+            if (profileImage == null || profileImage.Length == 0)
+            {
+                return BadRequest("No image file provided.");
+            }
+
+            // Opcional: Eliminar la imagen anterior si existe
+            if (!string.IsNullOrWhiteSpace(existingUser.ProfileImage))
+            {
+                var oldImageName = Path.GetFileName(existingUser.ProfileImage);
+                var oldImagePath = Path.Combine(_imagesDirectoryPath, oldImageName);
+                if (System.IO.File.Exists(oldImagePath))
+                {
+                    try
+                    {
+                        System.IO.File.Delete(oldImagePath);
+                        Console.WriteLine($"Deleted old profile image: {oldImagePath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error deleting old image: {ex.Message}");
+                        // No retornamos un error aquí para no interrumpir el flujo principal
+                    }
+                }
+            }
+
+            // Guardar la nueva imagen
+            string imageFileName = Guid.NewGuid().ToString() + Path.GetExtension(profileImage.FileName);
+            string imagePath = Path.Combine(_imagesDirectoryPath, imageFileName);
+
+            try
+            {
+                using (var stream = new FileStream(imagePath, FileMode.Create))
+                {
+                    await profileImage.CopyToAsync(stream);
+                }
+
+                // Asignar la URL relativa de la imagen
+                existingUser.ProfileImage = "/Images/" + imageFileName;
+                Console.WriteLine($"New profile image saved: {existingUser.ProfileImage}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving profile image: {ex.Message}");
+                return StatusCode(StatusCodes.Status500InternalServerError, "Error saving the image.");
+            }
+
+            // Actualizar el usuario en la base de datos
             _context.Entry(existingUser).State = EntityState.Modified;
 
             try
@@ -217,6 +272,26 @@ namespace DuootApi.Controllers
                 return NotFound();
             }
 
+            // Opcional: Eliminar la imagen de perfil si existe
+            if (!string.IsNullOrWhiteSpace(user.ProfileImage))
+            {
+                var imageName = Path.GetFileName(user.ProfileImage);
+                var imagePath = Path.Combine(_imagesDirectoryPath, imageName);
+                if (System.IO.File.Exists(imagePath))
+                {
+                    try
+                    {
+                        System.IO.File.Delete(imagePath);
+                        Console.WriteLine($"Deleted profile image: {imagePath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error deleting profile image: {ex.Message}");
+                        // No retornamos un error aquí para no interrumpir el flujo principal
+                    }
+                }
+            }
+
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
 
@@ -247,19 +322,18 @@ namespace DuootApi.Controllers
         }
 
         // GET: api/Users/5/username - Get username by ID without authentication
-[HttpGet("{id}/Username")]
-public async Task<ActionResult<string>> GetUsernameById(int id)
-{
-    var user = await _context.Users.FindAsync(id);
+        [HttpGet("{id}/Username")]
+        public async Task<ActionResult<string>> GetUsernameById(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
 
-    if (user == null)
-    {
-        return NotFound("User not found");
-    }
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
 
-    return Ok(user.Username);
-}
-
+            return Ok(user.Username);
+        }
     }
 
     public class LoginRequest
@@ -273,6 +347,4 @@ public async Task<ActionResult<string>> GetUsernameById(int id)
         public string CurrentPassword { get; set; }
         public string NewPassword { get; set; }
     }
-
-    
 }

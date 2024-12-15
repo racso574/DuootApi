@@ -33,29 +33,37 @@ namespace DuootApi.Controllers
 [HttpGet]
 public async Task<ActionResult<IEnumerable<object>>> GetPosts()
 {
-    Console.WriteLine("Fetching posts with choices, categories, and user...");
+    Console.WriteLine("Fetching posts with choices, categories, user, and user traits...");
 
     var posts = await _context.Posts
         .Include(p => p.Choices)
         .Include(p => p.PostCategories)
             .ThenInclude(pc => pc.Category)
-        .Include(p => p.User) // Incluir la entidad User
+        .Include(p => p.User)
+            .ThenInclude(u => u.UserTraits)
+                .ThenInclude(ut => ut.PersonalityTrait)
         .ToListAsync();
 
     var result = posts.Select(p => new
     {
         p.PostID,
         p.UserID,
-        Username = p.User.Username, // Incluir solo el Username
+        Username = p.User.Username,
         p.Title,
         p.CreationDate,
         p.Description,
         p.Choices,
-        p.PostCategories
+        p.PostCategories,
+        UserTraits = p.User.UserTraits.Select(ut => new 
+        {
+            ut.TraitID,
+            Description = ut.PersonalityTrait.Description
+        }).ToList()
     });
 
     return Ok(result);
 }
+
 
 
         [HttpGet("bycategory")]
