@@ -29,18 +29,34 @@ namespace DuootApi.Controllers
         }
 
         // GET: api/Posts - Obtener todos los posts con sus choices y categorías
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Post>>> GetPosts()
-        {
-            Console.WriteLine("Fetching posts with choices and categories...");
-            var posts = await _context.Posts
-                .Include(p => p.Choices)
-                .Include(p => p.PostCategories)
-                    .ThenInclude(pc => pc.Category)
-                .ToListAsync();
+       // GET: api/Posts - Obtener todos los posts con sus choices, categorías y username del creador
+[HttpGet]
+public async Task<ActionResult<IEnumerable<object>>> GetPosts()
+{
+    Console.WriteLine("Fetching posts with choices, categories, and user...");
 
-            return Ok(posts);
-        }
+    var posts = await _context.Posts
+        .Include(p => p.Choices)
+        .Include(p => p.PostCategories)
+            .ThenInclude(pc => pc.Category)
+        .Include(p => p.User) // Incluir la entidad User
+        .ToListAsync();
+
+    var result = posts.Select(p => new
+    {
+        p.PostID,
+        p.UserID,
+        Username = p.User.Username, // Incluir solo el Username
+        p.Title,
+        p.CreationDate,
+        p.Description,
+        p.Choices,
+        p.PostCategories
+    });
+
+    return Ok(result);
+}
+
 
         [HttpGet("bycategory")]
         public async Task<ActionResult<IEnumerable<Post>>> GetPostsByCategory([FromQuery] int categoryId)

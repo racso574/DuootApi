@@ -103,5 +103,41 @@ namespace DuootApi.Controllers
 
             return Ok(new { message = "Voto registrado correctamente." });
         }
+
+        /// <summary>
+        /// Obtiene los posts en los que el usuario autenticado ha votado.
+        /// </summary>
+        [Authorize]
+        [HttpGet("UserVotes")]
+        public async Task<ActionResult> GetUserVotes()
+        {
+            // Obtener el userID del token
+            var userIdClaim = User.FindFirst("userID");
+            if (userIdClaim == null)
+            {
+                return Unauthorized(new { message = "No autorizado." });
+            }
+
+            if (!int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized(new { message = "UserID inválido en el token." });
+            }
+
+            // Consultar los votos del usuario, incluyendo detalles de Post y Choice
+            var userVotes = await _context.Votes
+                .Where(v => v.UserID == userId)
+                .Include(v => v.Post)
+                .Include(v => v.Choice)
+                .Select(v => new
+                {
+                    v.PostID,
+                    PostTitle = v.Post.Title, // Asegúrate de que la entidad Post tiene una propiedad Title
+                    v.ChoiceID,
+                    v.VoteDate
+                })
+                .ToListAsync();
+
+            return Ok(userVotes);
+        }
     }
 }
