@@ -4,10 +4,10 @@ using DuootApi.Data;
 using DuootApi.Models;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.IdentityModel.Tokens;    // To work with JWT token validation options
-using System.IdentityModel.Tokens.Jwt;   // To generate JWT token
-using System.Security.Claims;            // To work with JWT claims
-using Microsoft.AspNetCore.Authorization; // To use [Authorize] and protect endpoints
+using Microsoft.IdentityModel.Tokens;    // Para opciones de validación de tokens JWT
+using System.IdentityModel.Tokens.Jwt;   // Para generar tokens JWT
+using System.Security.Claims;            // Para trabajar con claims JWT
+using Microsoft.AspNetCore.Authorization; // Para usar [Authorize] y proteger endpoints
 using Microsoft.AspNetCore.Http;
 using System.IO;
 
@@ -32,45 +32,103 @@ namespace DuootApi.Controllers
             Console.WriteLine($"Images directory path: {_imagesDirectoryPath}");
         }
 
-        // POST: api/Users - Register a new user
+        // POST: api/Users/register - Registrar un nuevo usuario con una imagen de perfil opcional
         [HttpPost("register")]
-        public async Task<ActionResult<User>> RegisterUser(User user)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<User>> RegisterUser(
+            [FromForm] string Email,
+            [FromForm] string Username,
+            [FromForm] string Password,
+            [FromForm] IFormFile ProfileImage
+        )
         {
-            // Check if the email or username already exists
-            if (await _context.Users.AnyAsync(u => u.Email == user.Email || u.Username == user.Username))
+            // Validar campos requeridos
+            if (string.IsNullOrEmpty(Email) || string.IsNullOrEmpty(Username) || string.IsNullOrEmpty(Password))
             {
-                return Conflict("The email or username already exists");
+                return BadRequest("Email, Username y Password son obligatorios.");
             }
 
-            // Hash the password
-            user.PasswordHash = HashPassword(user.PasswordHash);
+            // Verificar si el email o username ya existen
+            if (await _context.Users.AnyAsync(u => u.Email == Email || u.Username == Username))
+            {
+                return Conflict("El email o el username ya existen.");
+            }
 
-            // Add the user to the database
+            // Inicializar la entidad de usuario
+            var user = new User
+            {
+                Email = Email,
+                Username = Username,
+                PasswordHash = HashPassword(Password),
+     
+            };
+
+            // Manejar la carga de la imagen de perfil si se proporciona
+            if (ProfileImage != null && ProfileImage.Length > 0)
+            {
+                // Validar el tipo de archivo y el tamaño
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+                var extension = Path.GetExtension(ProfileImage.FileName).ToLower();
+
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return BadRequest("Formato de imagen inválido. Los formatos permitidos son .jpg, .jpeg, .png, .gif.");
+                }
+
+                if (ProfileImage.Length > 5 * 1024 * 1024) // Límite de 5 MB
+                {
+                    return BadRequest("El tamaño de la imagen excede el límite de 5MB.");
+                }
+
+                // Generar un nombre de archivo único
+                string imageFileName = Guid.NewGuid().ToString() + extension;
+                string imagePath = Path.Combine(_imagesDirectoryPath, imageFileName);
+
+                try
+                {
+                    // Guardar la imagen en el servidor
+                    using (var stream = new FileStream(imagePath, FileMode.Create))
+                    {
+                        await ProfileImage.CopyToAsync(stream);
+                    }
+
+                    // Asignar la URL relativa a la propiedad ProfileImage del usuario
+                    user.ProfileImage = "/Images/" + imageFileName;
+                    Console.WriteLine($"Imagen de perfil guardada: {user.ProfileImage}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error al guardar la imagen de perfil: {ex.Message}");
+                    return StatusCode(StatusCodes.Status500InternalServerError, "Error al guardar la imagen de perfil.");
+                }
+            }
+
+            // Agregar el usuario a la base de datos
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetUser", new { id = user.UserID }, user);
         }
 
-        // POST: api/Users/login - User login
+        // POST: api/Users/login - Inicio de sesión de usuario
         [HttpPost("login")]
         public async Task<ActionResult<string>> LoginUser([FromBody] LoginRequest loginRequest)
         {
-            // Find the user by email
+            // Buscar al usuario por email
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
 
             if (user == null || !VerifyPassword(loginRequest.Password, user.PasswordHash))
             {
-                return Unauthorized("Incorrect email or password");
+                return Unauthorized("Email o contraseña incorrectos.");
             }
 
-            // Generate the JWT token
+            // Generar el token JWT
             var token = GenerateJwtToken(user);
 
             return Ok(new { Token = token });
         }
 
-        // Method to generate a JWT token
+        // Método para generar un token JWT
         private string GenerateJwtToken(User user)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
@@ -93,8 +151,8 @@ namespace DuootApi.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        // GET: api/Users/5
-        [Authorize] // Requires authentication
+        // GET: api/Users/5 - Obtener usuario por ID
+        [Authorize] // Requiere autenticación
         [HttpGet("{id}")]
         public async Task<ActionResult<User>> GetUser(int id)
         {
@@ -108,161 +166,8 @@ namespace DuootApi.Controllers
             return user;
         }
 
-        // PUT: api/Users/5/username - Edit user username
-        [Authorize] // Requires authentication
-        [HttpPut("{id}/username")]
-        public async Task<IActionResult> UpdateUsername(int id, [FromBody] string newUsername)
-        {
-            var existingUser = await _context.Users.FindAsync(id);
-            if (existingUser == null)
-            {
-                return NotFound();
-            }
-
-            existingUser.Username = newUsername;
-            _context.Entry(existingUser).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // PUT: api/Users/5/password - Edit user password
-        [Authorize] // Requires authentication
-        [HttpPut("{id}/password")]
-        public async Task<IActionResult> UpdatePassword(int id, [FromBody] UpdatePasswordRequest updatePasswordRequest)
-        {
-            var existingUser = await _context.Users.FindAsync(id);
-            if (existingUser == null)
-            {
-                return NotFound();
-            }
-
-            // Verify the current password is correct
-            if (!VerifyPassword(updatePasswordRequest.CurrentPassword, existingUser.PasswordHash))
-            {
-                return Unauthorized("Current password is incorrect");
-            }
-
-            // Update to the new password
-            existingUser.PasswordHash = HashPassword(updatePasswordRequest.NewPassword);
-            _context.Entry(existingUser).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // PUT: api/Users/5/profileImage - Edit user profile image
-        [Authorize] // Requires authentication
-        [HttpPut("{id}/profileImage")]
-        [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UpdateProfileImage(int id, [FromForm] IFormFile profileImage)
-        {
-            var existingUser = await _context.Users.FindAsync(id);
-            if (existingUser == null)
-            {
-                return NotFound();
-            }
-
-            if (profileImage == null || profileImage.Length == 0)
-            {
-                return BadRequest("No image file provided.");
-            }
-
-            // Opcional: Eliminar la imagen anterior si existe
-            if (!string.IsNullOrWhiteSpace(existingUser.ProfileImage))
-            {
-                var oldImageName = Path.GetFileName(existingUser.ProfileImage);
-                var oldImagePath = Path.Combine(_imagesDirectoryPath, oldImageName);
-                if (System.IO.File.Exists(oldImagePath))
-                {
-                    try
-                    {
-                        System.IO.File.Delete(oldImagePath);
-                        Console.WriteLine($"Deleted old profile image: {oldImagePath}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error deleting old image: {ex.Message}");
-                        // No retornamos un error aquí para no interrumpir el flujo principal
-                    }
-                }
-            }
-
-            // Guardar la nueva imagen
-            string imageFileName = Guid.NewGuid().ToString() + Path.GetExtension(profileImage.FileName);
-            string imagePath = Path.Combine(_imagesDirectoryPath, imageFileName);
-
-            try
-            {
-                using (var stream = new FileStream(imagePath, FileMode.Create))
-                {
-                    await profileImage.CopyToAsync(stream);
-                }
-
-                // Asignar la URL relativa de la imagen
-                existingUser.ProfileImage = "/Images/" + imageFileName;
-                Console.WriteLine($"New profile image saved: {existingUser.ProfileImage}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error saving profile image: {ex.Message}");
-                return StatusCode(StatusCodes.Status500InternalServerError, "Error saving the image.");
-            }
-
-            // Actualizar el usuario en la base de datos
-            _context.Entry(existingUser).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // DELETE: api/Users/5 - Delete user
-        [Authorize] // Requires authentication
+        // DELETE: api/Users/5 - Eliminar un usuario
+        [Authorize] // Requiere autenticación
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
@@ -282,11 +187,11 @@ namespace DuootApi.Controllers
                     try
                     {
                         System.IO.File.Delete(imagePath);
-                        Console.WriteLine($"Deleted profile image: {imagePath}");
+                        Console.WriteLine($"Imagen de perfil eliminada: {imagePath}");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Error deleting profile image: {ex.Message}");
+                        Console.WriteLine($"Error al eliminar la imagen de perfil: {ex.Message}");
                         // No retornamos un error aquí para no interrumpir el flujo principal
                     }
                 }
@@ -298,13 +203,46 @@ namespace DuootApi.Controllers
             return NoContent();
         }
 
-        // Method to verify if a user exists
+        // Nuevo Endpoint: GET: api/Users/profileImage - Obtener la URL de la imagen de perfil del usuario autenticado
+        [Authorize] // Requiere autenticación
+        [HttpGet("profileImage")]
+        public async Task<ActionResult<string>> GetProfileImage()
+        {
+            // Obtener el UserID del token JWT
+            var userIdClaim = User.FindFirst("userID");
+            if (userIdClaim == null)
+            {
+                return Unauthorized("No se encontró el UserID en el token.");
+            }
+
+            if (!int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("UserID inválido en el token.");
+            }
+
+            // Buscar al usuario en la base de datos
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return NotFound("Usuario no encontrado.");
+            }
+
+            // Devolver la URL de la imagen de perfil
+            if (string.IsNullOrWhiteSpace(user.ProfileImage))
+            {
+                return NotFound("El usuario no tiene una imagen de perfil.");
+            }
+
+            return Ok(new { ProfileImageUrl = user.ProfileImage });
+        }
+
+        // Método para verificar si un usuario existe
         private bool UserExists(int id)
         {
             return _context.Users.Any(e => e.UserID == id);
         }
 
-        // Method to hash a password
+        // Método para hashear una contraseña
         private string HashPassword(string password)
         {
             using (var sha256 = SHA256.Create())
@@ -314,14 +252,14 @@ namespace DuootApi.Controllers
             }
         }
 
-        // Method to verify a password
+        // Método para verificar una contraseña
         private bool VerifyPassword(string password, string hashedPassword)
         {
             var hashedInputPassword = HashPassword(password);
             return hashedInputPassword == hashedPassword;
         }
 
-        // GET: api/Users/5/username - Get username by ID without authentication
+        // GET: api/Users/5/Username - Obtener el username por ID sin autenticación
         [HttpGet("{id}/Username")]
         public async Task<ActionResult<string>> GetUsernameById(int id)
         {
@@ -329,22 +267,52 @@ namespace DuootApi.Controllers
 
             if (user == null)
             {
-                return NotFound("User not found");
+                return NotFound("Usuario no encontrado.");
             }
 
             return Ok(user.Username);
         }
+
+        // GET: api/Users/me - Obtener datos del usuario autenticado a partir del token
+// GET: api/Users/me - Obtener datos del usuario autenticado a partir del token
+[Authorize] // Requiere autenticación
+[HttpGet("me")]
+public async Task<ActionResult<User>> GetUserFromToken()
+{
+    // Obtener el UserID del token JWT
+    var userIdClaim = User.FindFirst("userID");
+    if (userIdClaim == null)
+    {
+        return Unauthorized("No se encontró el UserID en el token.");
     }
 
+    if (!int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Unauthorized("UserID inválido en el token.");
+    }
+
+    // Aquí realizamos el eager loading de UserTraits y PersonalityTrait
+    var user = await _context.Users
+        .Include(u => u.UserTraits)
+        .ThenInclude(ut => ut.PersonalityTrait) // Carga la descripción del trait
+        .FirstOrDefaultAsync(u => u.UserID == userId);
+
+    if (user == null)
+    {
+        return NotFound("Usuario no encontrado.");
+    }
+
+    return Ok(user);
+}
+
+    }
+
+    // Clases auxiliares para solicitudes
     public class LoginRequest
     {
         public string Email { get; set; }
         public string Password { get; set; }
     }
 
-    public class UpdatePasswordRequest
-    {
-        public string CurrentPassword { get; set; }
-        public string NewPassword { get; set; }
-    }
+    // Nota: La clase UpdatePasswordRequest ya no es necesaria y puede ser eliminada si no se usa en otro lugar.
 }

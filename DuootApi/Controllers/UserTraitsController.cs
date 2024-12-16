@@ -45,6 +45,42 @@ namespace DuootApi.Controllers
         }
 
         /// <summary>
+        /// Obtiene las personalidades del usuario autenticado.
+        /// </summary>
+        /// <returns>Lista de personalidades del usuario autenticado</returns>
+        [HttpGet("MyTraits")]
+        public async Task<ActionResult<IEnumerable<PersonalityTrait>>> GetMyTraits()
+        {
+            // Obtener el userId del token JWT
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userID");
+            if (userIdClaim == null)
+            {
+                return Unauthorized("No se pudo determinar el usuario autenticado.");
+            }
+
+            if (!int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("ID de usuario inválido en el token.");
+            }
+
+            // Verificar si el usuario existe
+            var userExists = await _context.Users.AnyAsync(u => u.UserID == userId);
+            if (!userExists)
+            {
+                return NotFound($"Usuario con ID {userId} no encontrado.");
+            }
+
+            // Obtener las personalidades del usuario
+            var userTraits = await _context.UserTraits
+                .Where(ut => ut.UserID == userId)
+                .Include(ut => ut.PersonalityTrait)
+                .Select(ut => ut.PersonalityTrait)
+                .ToListAsync();
+
+            return Ok(userTraits);
+        }
+
+        /// <summary>
         /// Obtiene la lista de personalidades posibles.
         /// </summary>
         /// <returns>Lista completa de personalidades disponibles</returns>

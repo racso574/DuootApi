@@ -49,6 +49,9 @@ public async Task<ActionResult<IEnumerable<object>>> GetPosts()
         p.PostID,
         p.UserID,
         Username = p.User.Username,
+        
+        // Si prefieres una ruta relativa, utiliza la línea siguiente en lugar de la anterior:
+         ProfileImageURL = p.User.ProfileImage,
         p.Title,
         p.CreationDate,
         p.Description,
