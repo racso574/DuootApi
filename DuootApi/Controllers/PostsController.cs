@@ -42,6 +42,8 @@ public async Task<ActionResult<IEnumerable<object>>> GetPosts()
         .Include(p => p.User)
             .ThenInclude(u => u.UserTraits)
                 .ThenInclude(ut => ut.PersonalityTrait)
+        // Agrega la ordenación de los posts de más nuevo a más antiguo
+        .OrderByDescending(p => p.CreationDate)
         .ToListAsync();
 
     var result = posts.Select(p => new
@@ -51,7 +53,7 @@ public async Task<ActionResult<IEnumerable<object>>> GetPosts()
         Username = p.User.Username,
         
         // Si prefieres una ruta relativa, utiliza la línea siguiente en lugar de la anterior:
-         ProfileImageURL = p.User.ProfileImage,
+        ProfileImageURL = p.User.ProfileImage,
         p.Title,
         p.CreationDate,
         p.Description,
@@ -66,6 +68,7 @@ public async Task<ActionResult<IEnumerable<object>>> GetPosts()
 
     return Ok(result);
 }
+
 
 
 
