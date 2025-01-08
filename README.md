@@ -6,17 +6,12 @@
 
 ## Vista previa de la aplicación 🖼️
 
-### Página de Inicio
-![Pantalla de inicio](./assets/duot1.png)
-
-### Crear una publicación
-![Crear publicación](./assets/duot2.png)
-
-### Visualización de una publicación
-![Visualización de publicación](./assets/duot3.png)
-
-### Iniciar sesión
-![Iniciar sesión](./assets/duot4.png)
+<p align="center">
+  <img src="./assets/duot1.png" alt="Pantalla de inicio" width="24%">
+  <img src="./assets/duot2.png" alt="Crear publicación" width="24%">
+  <img src="./assets/duot3.png" alt="Visualización de publicación" width="24%">
+  <img src="./assets/duot4.png" alt="Iniciar sesión" width="24%">
+</p>
 
 ---
 
